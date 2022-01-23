@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Todoer</string>
-    <string name="you_have_no_todos">You have no Todos</string>
+    <string name="you_have_no_todos">You have no Todos. Click on the + icon to add new Todos</string>
+    <string name="add">Add todo</string>
     <string name="update">Update todo</string>
     <string-array name="dialog_list">
         <item>Edit</item>

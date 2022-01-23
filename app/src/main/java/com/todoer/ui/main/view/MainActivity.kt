@@ -1,14 +1,11 @@
 package com.todoer.ui.main.view
 
-import android.content.DialogInterface
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.todoer.R
 import com.todoer.data.api.RetrofitService
@@ -37,8 +34,10 @@ class MainActivity : AppCompatActivity(), TodoAdapter.OnTodoItemClickedListener 
         binding.recyclerview.hasFixedSize()
         val mainRepository = MainRepository(todoDatabase, retrofitService)
 
-        viewModel = ViewModelProvider(this,
-            MyViewModelFactory(mainRepository)).get(MainViewModel::class.java)
+        viewModel = ViewModelProvider(
+            this,
+            MyViewModelFactory(mainRepository)
+        ).get(MainViewModel::class.java)
 
         binding.viewModel = viewModel
 
@@ -51,7 +50,7 @@ class MainActivity : AppCompatActivity(), TodoAdapter.OnTodoItemClickedListener 
         })
 
         viewModel.addButtonClicked.observe(this, {
-            if (it){
+            if (it) {
                 startActivity(Intent(this, AddTodoActivity::class.java))
             }
         })

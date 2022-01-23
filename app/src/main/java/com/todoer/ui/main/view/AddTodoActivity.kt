@@ -1,29 +1,32 @@
 package com.todoer.ui.main.view
 
-import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.widget.RadioButton
-import android.widget.RadioGroup
 import android.widget.Toast
-import androidx.core.view.get
+import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
+import androidx.work.Constraints
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.todoer.R
 import com.todoer.data.api.RetrofitService
 import com.todoer.data.local.TodoListDatabase
 import com.todoer.data.model.Todo
 import com.todoer.data.repository.MainRepository
 import com.todoer.databinding.ActivityAddTodoBinding
-import com.todoer.databinding.ActivityMainBinding
 import com.todoer.ui.main.viewmodel.MainViewModel
 import com.todoer.ui.main.viewmodel.MyViewModelFactory
 import com.todoer.utils.Extensions.getCheckedRadioButtonPosition
+import com.todoer.utils.MainActivityWorkManager
+import com.todoer.utils.Repeat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
-class AddTodoActivity : AppCompatActivity(), RadioGroup.OnCheckedChangeListener {
+class AddTodoActivity : AppCompatActivity() {
 
     lateinit var viewModel: MainViewModel
     lateinit var binding: ActivityAddTodoBinding
@@ -38,41 +41,63 @@ class AddTodoActivity : AppCompatActivity(), RadioGroup.OnCheckedChangeListener 
         todoDatabase = TodoListDatabase.getInstance(this)
         val retrofitService = RetrofitService.getInstance()
         val mainRepository = MainRepository(todoDatabase, retrofitService)
-        binding.radioGroup.setOnCheckedChangeListener(this)
 
-        viewModel = ViewModelProvider(this,
+        viewModel = ViewModelProvider(
+            this,
             MyViewModelFactory(mainRepository)
         ).get(MainViewModel::class.java)
 
         binding.viewModel = viewModel
 
         val title = intent.getStringExtra("title")
-        if (title == null || title == ""){
-            binding.addTodo.setOnClickListener{
-                val todo = Todo(binding.titleEd.text.toString(), binding.detailEd.text.toString(), binding.radioGroup.getCheckedRadioButtonPosition(), Date())
+        if (title == null || title == "") {
+            supportActionBar?.title = getString(R.string.add)
+            binding.addTodo.setOnClickListener {
+                val todo = Todo(
+                    binding.titleEd.text.toString(),
+                    binding.detailEd.text.toString(),
+                    binding.radioGroup.getCheckedRadioButtonPosition(),
+                    Date()
+                )
                 todo.detail = binding.detailEd.text.toString()
                 viewModel.addTodo(false, todo)
             }
-        }else{
+        } else {
+            supportActionBar?.title = getString(R.string.update)
             binding.addTodo.text = getString(R.string.update)
             val repeat = intent.getIntExtra("repeat", -1)
             val detail = intent.getStringExtra("detail")
             val tId = intent.getIntExtra("tId", 0)
             binding.titleEd.setText(title)
             binding.detailEd.setText(detail)
-            if (-1!=repeat) {
+            if (-1 != repeat) {
                 binding.radioGroup.check((binding.radioGroup.getChildAt(repeat) as RadioButton).id)
             }
             binding.addTodo.setOnClickListener {
-                val todo = Todo(binding.titleEd.text.toString(), binding.detailEd.text.toString(), binding.radioGroup.getCheckedRadioButtonPosition(), Date(), tId)
+                val todo = Todo(
+                    binding.titleEd.text.toString(),
+                    binding.detailEd.text.toString(),
+                    binding.radioGroup.getCheckedRadioButtonPosition(),
+                    Date(),
+                    tId
+                )
                 todo.detail = binding.detailEd.text.toString()
                 viewModel.addTodo(true, todo)
-//                todoDatabase!!.getTodoDao().updateTodo(todo)
-//                finish()
             }
         }
 
         viewModel.addTodoSuccess.observe(this, {
+            val repeatInterval: Long = when (binding.radioGroup.getCheckedRadioButtonPosition()) {
+                Repeat.DAILY.ordinal -> 24
+                Repeat.WEEKLY.ordinal -> 168
+                else -> 0
+            }
+            if (repeatInterval != 0L) {
+                createWorkManager(repeatInterval)
+                Toast.makeText(applicationContext, "Notification created", Toast.LENGTH_SHORT)
+                    .show()
+            }
+
             finish()
         })
 
@@ -93,18 +118,31 @@ class AddTodoActivity : AppCompatActivity(), RadioGroup.OnCheckedChangeListener 
         })
     }
 
-    override fun onCheckedChanged(group: RadioGroup?, checkedId: Int) {
-        if (checkedId == R.id.daily){
-
-        }else if (checkedId == R.id.weekly) {
-
-        }
-    }
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home){
+        if (item.itemId == android.R.id.home) {
             onBackPressed()
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun createWorkManager(repeatInterval: Long) {
+        val constraints = Constraints.Builder()
+            .build()
+        val workRequest =
+            PeriodicWorkRequestBuilder<MainActivityWorkManager>(repeatInterval, TimeUnit.HOURS)
+//                    .setInitialDelay(repeatInterval, TimeUnit.HOURS)
+                .setInputData(
+                    workDataOf(
+                        "title" to binding.titleEd.text.toString(),
+                        "detail" to binding.detailEd.text.toString()
+                    )
+                )
+                .setConstraints(constraints)
+                .build()
+
+        WorkManager
+            .getInstance(applicationContext)
+            .enqueue(workRequest)
+
     }
 }

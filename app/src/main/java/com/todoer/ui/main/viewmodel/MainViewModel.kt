@@ -1,5 +1,6 @@
 package com.todoer.ui.main.viewmodel
 
+import androidx.databinding.ObservableField
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.todoer.data.model.Todo
@@ -8,6 +9,7 @@ import kotlinx.coroutines.*
 
 class MainViewModel constructor(private val mainRepository: MainRepository) : ViewModel() {
 
+    val hasNoTodo = ObservableField<Boolean>()
     val errorMessage = MutableLiveData<String>()
     val successMessage = MutableLiveData<String>()
     val addTodoSuccess = MutableLiveData<Boolean>()
@@ -27,6 +29,7 @@ class MainViewModel constructor(private val mainRepository: MainRepository) : Vi
             val response = mainRepository.getloadAllTasks()
             withContext(Dispatchers.Main){
                 if (response!=null) {
+                    hasNoTodo.set(response.size==0)
                     todoList.value = response
                     loading.value = false
                 } else {
